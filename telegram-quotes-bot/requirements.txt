@@ -1,0 +1,8 @@
+python-telegram-bot==20.3
+openai==0.28
+httpx==0.24.1
+Flask==2.3.2
+gunicorn
+
+
+#pip install -r requirements.txt
