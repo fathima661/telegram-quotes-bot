@@ -1,5 +1,6 @@
 import os
 import asyncio
+import threading
 from flask import Flask, request
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
@@ -61,7 +62,7 @@ application = Application.builder().token(TELEGRAM_TOKEN).build()
 application.add_handler(CommandHandler("start", start))
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-# === 5. Webhook route ===
+# === 5. Flask routes ===
 @app.route("/webhook", methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), application.bot)
@@ -72,17 +73,12 @@ def webhook():
 def index():
     return "Bot is running on Render!", 200
 
-# === 6. Set webhook when Flask starts (Flask 2.x compatible) ===
-@app.before_first_request
-def activate_webhook():
-    async def set_webhook():
-        webhook_url = f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME')}/webhook"
-        await application.bot.set_webhook(webhook_url)
-        print(f"Webhook set to: {webhook_url}")
+# === 6. Run bot in background thread (for Render) ===
+def run_bot():
+    asyncio.run(application.run_polling())
 
-    # Schedule the async task without blocking Flask
-    asyncio.get_event_loop().create_task(set_webhook())
+threading.Thread(target=run_bot, daemon=True).start()
 
-# === 7. Run Flask app (for local testing) ===
+# === 7. Run Flask ===
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=PORT)
