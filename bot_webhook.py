@@ -73,12 +73,8 @@ def index():
     return "Bot is running on Render!", 200
 
 # === 6. Set webhook when Flask starts ===
-@app.before_first_request
-def activate_webhook():
-    async def set_webhook():
-        webhook_url = f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME')}/webhook"
-        await application.bot.set_webhook(webhook_url)
-        print(f"Webhook set to: {webhook_url}")
-
-    loop = asyncio.get_event_loop()
-    loop.create_task(set_webhook())
+@app.before_serving
+async def activate_webhook():
+    webhook_url = f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME')}/webhook"
+    await application.bot.set_webhook(webhook_url)
+    print(f"Webhook set to: {webhook_url}")
