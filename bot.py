@@ -1,20 +1,15 @@
-from flask import Flask, request
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import openai
 import os
 import asyncio
 
-# === 1. Read tokens from environment variables ===
+# === 1. Read tokens ===
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 OPENAI_API_KEY = os.environ["OPENAI_KEY"]
 openai.api_key = OPENAI_API_KEY
 
-# === 2. Flask app ===
-app = Flask(__name__)
-PORT = int(os.environ.get("PORT", 5000))
-
-# === 3. Telegram bot logic ===
+# === 2. Bot logic ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Hello! 😊 Send me your mood in any language or even just emojis 😢😂💪, "
@@ -56,29 +51,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     quote = response["choices"][0]["message"]["content"].strip()
     await update.message.reply_text(quote)
 
-# === 4. Telegram Application ===
+# === 3. Start polling ===
 application = Application.builder().token(TELEGRAM_TOKEN).build()
 application.add_handler(CommandHandler("start", start))
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-# === 5. Webhook route ===
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    update = Update.de_json(request.get_json(force=True), application.bot)
-    application.update_queue.put_nowait(update)
-    return "OK", 200
-
-@app.route("/")
-def index():
-    return "Bot is running on Render!", 200
-
-# === 6. Set webhook when Flask starts ===
-@app.before_first_request
-def activate_webhook():
-    async def set_webhook():
-        webhook_url = f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME')}/webhook"
-        await application.bot.set_webhook(webhook_url)
-        print(f"Webhook set to: {webhook_url}")
-
-    loop = asyncio.get_event_loop()
-    loop.create_task(set_webhook())
+application.run_polling()

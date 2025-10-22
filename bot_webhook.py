@@ -2,7 +2,7 @@ import os
 import asyncio
 from flask import Flask, request
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import openai
 
 # === 1. Read tokens from environment variables ===
@@ -15,7 +15,7 @@ app = Flask(__name__)
 PORT = int(os.environ.get("PORT", 5000))
 
 # === 3. Telegram bot logic ===
-async def start(update: Update, context):
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Hello! 😊 Send me your mood in any language or even just emojis 😢😂💪, "
         "and I'll reply with a motivational quote in the same language."
@@ -41,7 +41,7 @@ async def correct_text(user_text, language):
     )
     return response["choices"][0]["message"]["content"].strip()
 
-async def handle_message(update: Update, context):
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
     language = await detect_language(user_text)
     corrected_text = await correct_text(user_text, language)
@@ -49,10 +49,7 @@ async def handle_message(update: Update, context):
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
-            {
-                "role": "system",
-                "content": f"Generate a short, uplifting motivational quote in the same language as the user ({language})."
-            },
+            {"role": "system", "content": f"Generate a short, uplifting motivational quote in the same language as the user ({language})."},
             {"role": "user", "content": f"User feels: {corrected_text}"}
         ]
     )
@@ -75,15 +72,13 @@ def webhook():
 def index():
     return "Bot is running on Render!", 200
 
-# === 6. Set webhook when starting ===
-if __name__ == "__main__":
+# === 6. Set webhook when Flask starts ===
+@app.before_first_request
+def activate_webhook():
     async def set_webhook():
         webhook_url = f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME')}/webhook"
         await application.bot.set_webhook(webhook_url)
         print(f"Webhook set to: {webhook_url}")
 
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(set_webhook())
-
-    # Only used for local testing; Gunicorn will start the app in production
-    app.run(host="0.0.0.0", port=PORT)
+    loop.create_task(set_webhook())
