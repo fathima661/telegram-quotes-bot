@@ -1,7 +1,13 @@
 import requests
+import os
 
-TOKEN = "7953918660:AAFOsfFl569vVOp4rqFeIORvqOFE4FtyuAE"
-WEBHOOK_URL = "https://telegram-quotes-bot-6.onrender.com/webhook"
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
-response = requests.get(f"https://api.telegram.org/bot{TOKEN}/setWebhook?url={WEBHOOK_URL}")
+webhook_url = "https://telegram-quotes-bot-6.onrender.com/webhook"
+
+response = requests.get(
+    f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/setWebhook",
+    params={"url": webhook_url}
+)
+
 print(response.json())
